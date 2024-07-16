@@ -4,7 +4,7 @@ Distributed IoT Data Acquisition and Analytics
 ---
 
 This project encompasses program code, a generated dataset, and the resulting research paper. 
-The main components of the project are:
+The main components of the project are implemented using Python 3.7.4 in Spyder 4.2.5:
 
 Task1: Animal Movements
 The Task1_animals_movements directory contains the algorithm for generating animal movement data and visualizing their movement routes. 
