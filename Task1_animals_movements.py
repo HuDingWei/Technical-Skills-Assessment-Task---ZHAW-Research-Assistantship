@@ -34,6 +34,9 @@ longitude = 8.5417
 lonlat = (latitude, longitude)
 
 def generate_modified_degree90_movement(num_points, distance, origin_xy):
+    """
+    Generates animal movement data.
+    """
     movements = []
     (x, y) = origin_xy[0]
     movements.append((x, y))

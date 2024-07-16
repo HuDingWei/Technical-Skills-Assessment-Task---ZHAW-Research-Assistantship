@@ -72,13 +72,15 @@ def plot_movements(movements):
 animal_movements = {}
 lock = threading.Lock()
 
-def generate_animals_threading(animal_id, num_points, origin_xy, regularity, conn):
+def generate_animals_threading(animal_id, num_points, origin_xy, regularity, client):
+    """
+    Generates animal movement data and sends it to the client.
+    """
     movements = []
     xy = latlon_to_utm(lonlat)
     (x, y) = origin_xy[0]
     x = x + xy[0][0]
     y = y + xy[0][1]
-    utm_to_lonlat
     movements.append((x, y))
     
     # Initialize the previous direction angle to a random direction
@@ -115,31 +117,59 @@ def generate_animals_threading(animal_id, num_points, origin_xy, regularity, con
             animal_movements[animal_id] = (animal_id, lon, lat, x, y)
             print(f"Sending position for animal {animal_id}: lon={lon}, lat={lat}")
             data = json.dumps({'animal_id': animal_id, 'longitude': lon, 'latitude': lat})
-            conn.sendall(data.encode('utf-8') + b'\n')
+            try:
+                client.sendall(data.encode('utf-8') + b'\n')
+            except socket.error as e:
+                print(f"Error sending data: {e}")
+                break
 
         time.sleep(regularity)
 
 def start_movement_server():
+    """
+    Starts the movement server and listens for client connections.
+    """
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server.bind(('0.0.0.0', 5001))
-    server.listen(5)
-    print("Server listening on port 5001")
-    conn, addr = server.accept()
-    print(f"Connection from {addr}")
+    try:
+        server.bind(('0.0.0.0', 5001))
+        server.listen(5)
+        print("Server listening on port 5001")
+    except socket.error as e:
+        print(f"Server error: {e}")
+        return
+        
+    try:
+        client, addr = server.accept()
+        print(f"Connection from {addr}")
+    except socket.error as e:
+        print(f"Error accepting connection: {e}")
+        return
+
+    # try:
+    #     data = conn.recv(1024).decode('utf-8')
+    # except data as data:
+    #     print(f"Error decoding: {data}")
+    #     return
 
     while True:
-        data = conn.recv(1024).decode('utf-8')
-        if not data:
+        try:
+            data = client.recv(1024).decode('utf-8')
+            if not data:
+                break
+            request_data = json.loads(data)
+            num_animals = request_data['num_animals']
+            num_points = request_data['num_points']
+            origin_xy = request_data['origin_xy']
+            regularity = request_data.get('regularity', 0.1)
+            for animal_id in range(num_animals):
+                threading.Thread(target=generate_animals_threading, args=(animal_id, num_points, origin_xy, regularity, client)).start()
+        except json.JSIONDecoderError as e:
+            print(f"Error decoding JSON data: {e}")
+        except socket.error as e:
+            print(f"Error receiving data: {e}")
             break
-        request_data = json.loads(data)
-        num_animals = request_data['num_animals']
-        num_points = request_data['num_points']
-        origin_xy = request_data['origin_xy']
-        regularity = request_data.get('regularity', 0.1)
-        for animal_id in range(num_animals):
-            threading.Thread(target=generate_animals_threading, args=(animal_id, num_points, origin_xy, regularity, conn)).start()
 
-    conn.close()
+    client.close()
 
 if __name__ == '__main__':
     start_movement_server()

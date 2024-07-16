@@ -24,19 +24,34 @@ animal_movements = {}
 lock = threading.Lock()
 
 running = True  # Flag used to control thread exit
+
 def start_movement():
+    """
+    Establishes a socket connection to receive animal movement data and
+    performs coordinate transformation.
+    """
     global running
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    client.connect(('127.0.0.1', 5001))
+    try:
+        client.connect(('127.0.0.1', 5001))
+    except socket.error as e:
+        print(f"Unable to connect to server: {e}")
+        return
     
     data = {
         "num_animals": 3,
-        "num_points": 100,
+        "num_points": 10,
         "origin_xy": [(0, 0)],
         "regularity": 0.1
     }
-    client.sendall(json.dumps(data).encode('utf-8') + b'\n')
-
+    
+    try:
+        client.sendall(json.dumps(data).encode('utf-8') + b'\n')
+    except socket.error as e:
+        print(f"Error - Unable to send data: {e}")
+        client.close()
+        return
+    
     while running:
         try:
             client.settimeout(5.0)  # Set the timeout to 5 second
@@ -57,12 +72,17 @@ def start_movement():
                         print(f"Animal ID: {animal_id}, Longitude: {lon}, Latitude: {lat}, UTM X: {x}, UTM Y: {y}")
         except socket.timeout:
             continue  # If it times out, continue looping to check the running flag                
-        except socket.error:
+        except socket.error as e:
+            print(f"An error occurred while receiving data: {e}")
             break
 
     client.close()
 
 def calculate_metrics():
+    """
+    Periodically calculates and prints the total distance travelled by each
+    animal based on their movement data.
+    """
     global running
     while running:
         time.sleep(10)  # Indicators are calculated every 10 seconds
